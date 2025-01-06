@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Box, Container, Paper, Typography, Button, TextField, Tooltip } from '@mui/material';
+import { Box, Container, Paper, Typography, Button, TextField, Tooltip, Modal, IconButton } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Papa, { ParseResult } from 'papaparse';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import './App.css';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface CustomerData {
   Customer: string;
@@ -55,6 +56,11 @@ interface CohortData {
     retentionRate: number;
     revenueRate: number;
   }[];
+}
+
+interface CustomerRevenueData {
+  date: string;
+  revenue: number;
 }
 
 // Create a modern theme
@@ -185,6 +191,98 @@ const KPICard = ({
   );
 };
 
+const CustomerModal = ({ 
+  open, 
+  onClose, 
+  customer, 
+  revenueData 
+}: { 
+  open: boolean;
+  onClose: () => void;
+  customer: CustomerSummary | null;
+  revenueData: CustomerRevenueData[];
+}) => {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      aria-labelledby="customer-modal-title"
+    >
+      <Box sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '80%',
+        maxWidth: 800,
+        bgcolor: 'background.paper',
+        borderRadius: 2,
+        boxShadow: 24,
+        p: 4,
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography id="customer-modal-title" variant="h6" component="h2">
+            {customer?.customer}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            Start Date: {customer?.startDate}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Status: {customer?.status}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Current MRR: ${customer?.currentMrr.toLocaleString()}
+          </Typography>
+        </Box>
+
+        <Box sx={{ height: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={revenueData}
+              margin={{ top: 10, right: 30, left: 50, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+              <XAxis 
+                dataKey="date" 
+                stroke="#6B7280"
+                fontSize={12}
+                tickLine={false}
+              />
+              <YAxis
+                tickFormatter={(value) => `$${value.toLocaleString()}`}
+                stroke="#6B7280"
+                fontSize={12}
+                tickLine={false}
+              />
+              <RechartsTooltip
+                formatter={(value: number) => [`$${value.toLocaleString()}`, 'MRR']}
+                contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: 8,
+                  border: '1px solid rgba(0,0,0,0.1)',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="revenue" 
+                stroke="#6366F1" 
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
+      </Box>
+    </Modal>
+  );
+};
+
 function App() {
   const [customerData, setCustomerData] = useState<CustomerData[]>([]);
   const [metrics, setMetrics] = useState<MetricsData[]>([]);
@@ -205,6 +303,8 @@ function App() {
     customers: true
   });
   const [cohortData, setCohortData] = useState<CohortData[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null);
+  const [customerRevenueData, setCustomerRevenueData] = useState<CustomerRevenueData[]>([]);
 
   const cleanCurrencyString = (value: string | number): number => {
     // If it's already a number, return it
@@ -788,6 +888,13 @@ function App() {
     );
   };
 
+  const getCustomerRevenueData = (customer: CustomerSummary) => {
+    return metrics.map(metric => ({
+      date: metric.date,
+      revenue: cleanCurrencyString(customerData.find(c => c.Customer === customer.customer)?.[metric.date] || 0)
+    }));
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -1286,9 +1393,23 @@ function App() {
                   }}
                   pageSizeOptions={[5]}
                   disableRowSelectionOnClick
+                  onRowClick={(params) => {
+                    const customer = customerSummaries.find(c => c.id === params.row.id) || null;
+                    setSelectedCustomer(customer);
+                    if (customer) {
+                      setCustomerRevenueData(getCustomerRevenueData(customer));
+                    }
+                  }}
                 />
               </Box>
             </Paper>
+
+            <CustomerModal
+              open={selectedCustomer !== null}
+              onClose={() => setSelectedCustomer(null)}
+              customer={selectedCustomer}
+              revenueData={customerRevenueData}
+            />
           </>
         )}
       </Container>
