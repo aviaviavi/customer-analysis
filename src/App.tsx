@@ -4,6 +4,7 @@ import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Papa, { ParseResult } from 'papaparse';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 import './App.css';
 
 interface CustomerData {
@@ -56,6 +57,53 @@ interface CohortData {
   }[];
 }
 
+// Create a modern theme
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#6366F1', // Modern indigo
+      light: '#818CF8',
+      dark: '#4F46E5',
+    },
+    secondary: {
+      main: '#10B981', // Modern emerald
+      light: '#34D399',
+      dark: '#059669',
+    },
+    background: {
+      default: '#F9FAFB',
+      paper: '#FFFFFF',
+    },
+    text: {
+      primary: '#111827',
+      secondary: '#6B7280',
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
+          '&:hover': {
+            boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
+          },
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+      },
+    },
+  },
+});
+
 const KPICard = ({ 
   title, 
   value, 
@@ -88,7 +136,18 @@ const KPICard = ({
 
   return (
     <Tooltip title={tooltip} arrow>
-      <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+      <Box sx={{ 
+        p: 3, 
+        border: '1px solid', 
+        borderColor: 'divider',
+        borderRadius: 2,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(99,102,241,0.03) 100%)',
+        transition: 'all 0.2s ease-in-out',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.1)',
+        },
+      }}>
         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
           {title}
         </Typography>
@@ -731,17 +790,25 @@ function App() {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          SaaS Revenue Analytics
-        </Typography>
-        
-        <Paper sx={{ p: 2, mb: 2 }}>
+    <ThemeProvider theme={theme}>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Paper sx={{ p: 4, mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+            SaaS Revenue Analysis
+          </Typography>
           <Button
             variant="contained"
             component="label"
-            sx={{ mb: 2 }}
+            sx={{ 
+              mb: metrics.length ? 0 : 2,
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              backgroundColor: 'primary.main',
+              '&:hover': {
+                backgroundColor: 'primary.dark',
+              }
+            }}
           >
             Upload File
             <input
@@ -777,11 +844,15 @@ function App() {
 
         {metrics.length > 0 && (
           <>
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper sx={{ p: 4, mb: 3 }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                 Key Metrics
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+              <Box sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+                gap: 3 
+              }}>
                 <KPICard
                   title="Monthly Recurring Revenue"
                   value={`$${metrics[metrics.length - 1].mrr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
@@ -887,8 +958,8 @@ function App() {
               </Box>
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper sx={{ p: 4, mb: 3 }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                 Monthly Trends
               </Typography>
               <Box sx={{ mb: 2 }}>
@@ -945,14 +1016,28 @@ function App() {
               </Box>
               <Box sx={{ height: 400, ml: 2 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={metrics} margin={{ top: 10, right: 50, left: 50, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
+                  <LineChart 
+                    data={metrics} 
+                    margin={{ top: 10, right: 50, left: 50, bottom: 20 }}
+                  >
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke="rgba(0,0,0,0.06)"
+                    />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#6B7280"
+                      fontSize={12}
+                      tickLine={false}
+                    />
                     <YAxis 
                       yAxisId="left"
                       tickFormatter={(value) => `$${value.toLocaleString()}`}
                       label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', offset: -35 }}
                       width={80}
+                      stroke="#6B7280"
+                      fontSize={12}
+                      tickLine={false}
                     />
                     <YAxis 
                       yAxisId="right" 
@@ -960,6 +1045,9 @@ function App() {
                       tickFormatter={(value) => `${value}%`}
                       label={{ value: 'NRR (%)', angle: 90, position: 'insideRight', offset: -35 }}
                       width={80}
+                      stroke="#6B7280"
+                      fontSize={12}
+                      tickLine={false}
                     />
                     <RechartsTooltip 
                       formatter={(value: number, name: string) => {
@@ -971,8 +1059,18 @@ function App() {
                         }
                         return [`${value.toFixed(1)}%`, name];
                       }}
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderRadius: 8,
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }}
                     />
-                    <Legend />
+                    <Legend 
+                      wrapperStyle={{
+                        paddingTop: 20
+                      }}
+                    />
                     {monthlyVisibleSeries.mrr && (
                       <Line yAxisId="left" type="monotone" dataKey="mrr" name="MRR" stroke="#8884d8" />
                     )}
@@ -1005,8 +1103,8 @@ function App() {
               </Box>
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper sx={{ p: 4, mb: 3 }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                 Quarterly Trends
               </Typography>
               <Box sx={{ mb: 2 }}>
@@ -1144,8 +1242,8 @@ function App() {
               </Box>
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper sx={{ p: 4, mb: 3 }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                 Cohort Analysis
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -1154,8 +1252,8 @@ function App() {
               <CohortGrid data={cohortData} />
             </Paper>
 
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper sx={{ p: 4 }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                 Customer Details
               </Typography>
               <Box sx={{ mb: 2 }}>
@@ -1194,8 +1292,8 @@ function App() {
             </Paper>
           </>
         )}
-      </Box>
-    </Container>
+      </Container>
+    </ThemeProvider>
   );
 }
 
