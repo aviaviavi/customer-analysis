@@ -21,12 +21,14 @@ interface MetricsData {
   nrr: number;
   netNewRevenue: number;
   acv: number;
+  activeCustomers: number;
   quarterlyMrr?: number;
   quarterlyArr?: number;
   quarterlyGrowth?: number;
   quarterlyNrr?: number;
   quarterlyNetNew?: number;
   quarterlyAcv?: number;
+  quarterlyActiveCustomers?: number;
   formattedQuarter?: string;
 }
 
@@ -63,13 +65,15 @@ function App() {
     mrr: true,
     arr: true,
     nrr: true,
-    acv: true
+    acv: true,
+    customers: true
   });
   const [quarterlyVisibleSeries, setQuarterlyVisibleSeries] = useState({
     mrr: true,
     arr: true,
     nrr: true,
-    acv: true
+    acv: true,
+    customers: true
   });
   const [cohortData, setCohortData] = useState<CohortData[]>([]);
 
@@ -186,7 +190,8 @@ function App() {
         growthRate,
         nrr,
         netNewRevenue,
-        acv
+        acv,
+        activeCustomers
       };
     });
 
@@ -272,6 +277,7 @@ function App() {
         metric.quarterlyNetNew = quarterlyNetNew;
         metric.quarterlyAcv = quarterlyAcv;
         metric.formattedQuarter = `Q${quarter} '${String(year).slice(2)}`;
+        metric.quarterlyActiveCustomers = quarterlyActiveCustomers;
       }
     });
 
@@ -713,6 +719,14 @@ function App() {
                       </Typography>
                     </Box>
                   </Tooltip>
+                  <Tooltip title="Number of customers with active subscriptions this month" arrow>
+                    <Box>
+                      <Typography variant="subtitle2" color="text.secondary">Active Customers</Typography>
+                      <Typography variant="h4">
+                        {metrics[metrics.length - 1].activeCustomers.toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Tooltip>
                   <Tooltip title="Average Contract Value - Total ARR divided by number of active customers" arrow>
                     <Box>
                       <Typography variant="subtitle2" color="text.secondary">Average Contract Value</Typography>
@@ -871,6 +885,15 @@ function App() {
                     />
                     <label htmlFor="monthly-acv">ACV</label>
                   </Box>
+                  <Box>
+                    <input
+                      type="checkbox"
+                      id="monthly-customers"
+                      checked={monthlyVisibleSeries.customers}
+                      onChange={(e) => setMonthlyVisibleSeries(prev => ({ ...prev, customers: e.target.checked }))}
+                    />
+                    <label htmlFor="monthly-customers">Customers</label>
+                  </Box>
                 </Box>
               </Box>
               <Box sx={{ height: 400, ml: 2 }}>
@@ -916,6 +939,15 @@ function App() {
                         dataKey="acv" 
                         name="ACV" 
                         stroke="#ff7300" 
+                      />
+                    )}
+                    {monthlyVisibleSeries.customers && (
+                      <Line 
+                        yAxisId="right" 
+                        type="monotone" 
+                        dataKey="activeCustomers" 
+                        name="Active Customers" 
+                        stroke="#e91e63" 
                       />
                     )}
                   </LineChart>
@@ -967,6 +999,15 @@ function App() {
                       onChange={(e) => setQuarterlyVisibleSeries(prev => ({ ...prev, acv: e.target.checked }))}
                     />
                     <label htmlFor="quarterly-acv">ACV</label>
+                  </Box>
+                  <Box>
+                    <input
+                      type="checkbox"
+                      id="quarterly-customers"
+                      checked={quarterlyVisibleSeries.customers}
+                      onChange={(e) => setQuarterlyVisibleSeries(prev => ({ ...prev, customers: e.target.checked }))}
+                    />
+                    <label htmlFor="quarterly-customers">Customers</label>
                   </Box>
                 </Box>
               </Box>
@@ -1034,6 +1075,15 @@ function App() {
                         dataKey="quarterlyAcv" 
                         name="Quarterly ACV" 
                         stroke="#ff7300" 
+                      />
+                    )}
+                    {quarterlyVisibleSeries.customers && (
+                      <Line 
+                        yAxisId="right" 
+                        type="monotone" 
+                        dataKey="quarterlyActiveCustomers" 
+                        name="Active Customers" 
+                        stroke="#e91e63" 
                       />
                     )}
                   </LineChart>
