@@ -955,6 +955,9 @@ function App() {
                         if (name === 'MRR' || name === 'ARR' || name === 'ACV') {
                           return [`$${value.toLocaleString()}`, name];
                         }
+                        if (name === 'Active Customers') {
+                          return [value.toLocaleString(), name];
+                        }
                         return [`${value.toFixed(1)}%`, name];
                       }}
                     />
@@ -1072,6 +1075,9 @@ function App() {
                       formatter={(value: number, name: string) => {
                         if (name === 'Quarterly MRR' || name === 'Quarterly ARR' || name === 'Quarterly ACV') {
                           return [`$${value.toLocaleString()}`, name];
+                        }
+                        if (name === 'Active Customers') {
+                          return [value.toLocaleString(), name];
                         }
                         return [`${value.toFixed(1)}%`, name];
                       }}
