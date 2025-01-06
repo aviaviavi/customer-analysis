@@ -581,7 +581,7 @@ function App() {
         return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
       }
       
-      // Handle string dates
+      // Handle string dates in local timezone
       const date = new Date(value);
       if (isNaN(date.getTime())) return value;
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -724,13 +724,12 @@ function App() {
       // Parse YYYY-MM format directly
       const [year, month] = dateStr.split('-').map(Number);
       
-      // Create date string that will be interpreted as UTC
-      const date = new Date(Date.UTC(year, month - 1));
+      // Create date in local timezone (month is 0-based)
+      const date = new Date(year, month - 1);
       
       return date.toLocaleDateString('en-US', { 
         month: 'short', 
-        year: '2-digit',
-        timeZone: 'UTC'  // Ensure UTC interpretation
+        year: '2-digit'
       });
     };
 
