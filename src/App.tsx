@@ -397,8 +397,6 @@ function App() {
   };
 
   const calculateCohortData = (data: CustomerData[], dateColumns: string[]): CohortData[] => {
-    console.log('Date columns:', dateColumns);
-    
     const cohortGroups = data.reduce((groups: { [key: string]: CustomerData[] }, customer) => {
       const startDate = customer['Customer Start Date'];
       if (!startDate || startDate === 'N/A') return groups;
@@ -415,7 +413,6 @@ function App() {
       return groups;
     }, {});
 
-    // Get the latest available date from dateColumns
     const latestAvailableDate = dateColumns[dateColumns.length - 1];
     const [latestYear, latestMonth] = latestAvailableDate.split('-').map(Number);
 
@@ -432,7 +429,23 @@ function App() {
         };
       }
 
-      // Calculate number of periods from cohort start to latest available date
+      // Calculate initial revenue by looking at the first 3 months of data for each customer
+      const initialRevenue = customers.reduce((sum, customer) => {
+        // Get the first 3 months of revenue
+        const firstThreeMonths = Array.from({ length: 3 }, (_, i) => {
+          const date = new Date(cohortYear, cohortMonth - 1 + i);
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        });
+
+        // Get the maximum revenue from the first 3 months
+        const maxRevenue = Math.max(
+          ...firstThreeMonths.map(date => cleanCurrencyString(customer[date] || 0))
+        );
+
+        return sum + maxRevenue;
+      }, 0);
+
+      // Calculate periods as before
       const monthsDiff = (latestYear - cohortYear) * 12 + (latestMonth - cohortMonth);
       const periods = Array.from({ length: monthsDiff + 1 }, (_, index) => {
         const periodDate = new Date(cohortYear, cohortMonth - 1 + index);
@@ -449,16 +462,14 @@ function App() {
           retained: activeCustomers,
           revenue: periodRevenue,
           retentionRate: (activeCustomers / customers.length) * 100,
-          revenueRate: periodRevenue / (customers.reduce((sum, customer) => 
-            sum + cleanCurrencyString(customer[cohort] || 0), 0)) * 100
+          revenueRate: periodRevenue / initialRevenue * 100
         };
       });
 
       return {
         cohort,
         initialCustomers: customers.length,
-        initialRevenue: customers.reduce((sum, customer) => 
-          sum + cleanCurrencyString(customer[cohort] || 0), 0),
+        initialRevenue,
         periods
       };
     });
