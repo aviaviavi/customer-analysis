@@ -56,6 +56,76 @@ interface CohortData {
   }[];
 }
 
+const KPICard = ({ 
+  title, 
+  value, 
+  monthChange, 
+  quarterChange, 
+  yearChange, 
+  tooltip 
+}: { 
+  title: string;
+  value: string;
+  monthChange?: number;
+  quarterChange?: number;
+  yearChange?: number;
+  tooltip: string;
+}) => {
+  const formatChange = (change?: number) => {
+    if (change === undefined) return '-';
+    return title === "Net Revenue Retention" ? 
+      `${change.toFixed(1)}%` :
+      `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+  };
+
+  const getChangeColor = (change?: number) => {
+    if (change === undefined) return 'text.secondary';
+    if (title === "Net Revenue Retention") {
+      return change >= 100 ? 'success.main' : 'error.main';
+    }
+    return change >= 0 ? 'success.main' : 'error.main';
+  };
+
+  return (
+    <Tooltip title={tooltip} arrow>
+      <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+          {title}
+        </Typography>
+        <Typography variant="h4" sx={{ mb: 1 }}>
+          {value}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              {title === "Net Revenue Retention" ? "Monthly" : "M/M"}
+            </Typography>
+            <Typography variant="body2" color={getChangeColor(monthChange)}>
+              {formatChange(monthChange)}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              {title === "Net Revenue Retention" ? "Quarterly" : "Q/Q"}
+            </Typography>
+            <Typography variant="body2" color={getChangeColor(quarterChange)}>
+              {formatChange(quarterChange)}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              {title === "Net Revenue Retention" ? "Annual" : "Y/Y"}
+            </Typography>
+            <Typography variant="body2" color={getChangeColor(yearChange)}>
+              {formatChange(yearChange)}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Tooltip>
+  );
+};
+
 function App() {
   const [customerData, setCustomerData] = useState<CustomerData[]>([]);
   const [metrics, setMetrics] = useState<MetricsData[]>([]);
@@ -698,145 +768,111 @@ function App() {
           <>
             <Paper sx={{ p: 2, mb: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Latest Metrics
+                Key Metrics
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, mb: 4 }}>
-                {/* Primary Metrics */}
-                <Box sx={{ display: 'grid', gap: 3 }}>
-                  <Tooltip title="Monthly Recurring Revenue - Sum of all active customer subscriptions for the current month" arrow>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Current MRR</Typography>
-                      <Typography variant="h4">
-                        ${metrics[metrics.length - 1].mrr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                  </Tooltip>
-                  <Tooltip title="Annual Recurring Revenue - Current MRR × 12" arrow>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Current ARR</Typography>
-                      <Typography variant="h4">
-                        ${metrics[metrics.length - 1].arr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                  </Tooltip>
-                  <Tooltip title="Number of customers with active subscriptions this month" arrow>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Active Customers</Typography>
-                      <Typography variant="h4">
-                        {metrics[metrics.length - 1].activeCustomers.toLocaleString()}
-                      </Typography>
-                    </Box>
-                  </Tooltip>
-                  <Tooltip title="Average Contract Value - Total ARR divided by number of active customers" arrow>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Average Contract Value</Typography>
-                      <Typography variant="h4">
-                        ${metrics[metrics.length - 1].acv.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                  </Tooltip>
-                </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                <KPICard
+                  title="Monthly Recurring Revenue"
+                  value={`$${metrics[metrics.length - 1].mrr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  monthChange={((metrics[metrics.length - 1].mrr / metrics[metrics.length - 2].mrr) - 1) * 100}
+                  quarterChange={metrics[metrics.length - 1].quarterlyGrowth}
+                  yearChange={metrics.length > 12 ? ((metrics[metrics.length - 1].mrr / metrics[metrics.length - 13].mrr) - 1) * 100 : undefined}
+                  tooltip="Monthly Recurring Revenue - Sum of all active customer subscriptions"
+                />
+                <KPICard
+                  title="Annual Recurring Revenue"
+                  value={`$${metrics[metrics.length - 1].arr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  monthChange={((metrics[metrics.length - 1].arr / metrics[metrics.length - 2].arr) - 1) * 100}
+                  quarterChange={metrics[metrics.length - 1].quarterlyGrowth}
+                  yearChange={metrics.length > 12 ? ((metrics[metrics.length - 1].arr / metrics[metrics.length - 13].arr) - 1) * 100 : undefined}
+                  tooltip="Annual Recurring Revenue - Current MRR × 12"
+                />
+                <KPICard
+                  title="Active Customers"
+                  value={metrics[metrics.length - 1].activeCustomers.toLocaleString()}
+                  monthChange={((metrics[metrics.length - 1].activeCustomers / metrics[metrics.length - 2].activeCustomers) - 1) * 100}
+                  quarterChange={
+                    metrics[metrics.length - 1]?.quarterlyActiveCustomers != null && 
+                    metrics[metrics.length - 4]?.quarterlyActiveCustomers != null && 
+                    metrics[metrics.length - 4] != null ?
+                      ((metrics[metrics.length - 1]?.quarterlyActiveCustomers ?? 0) / 
+                        (metrics[metrics.length - 4]?.quarterlyActiveCustomers ?? 1) - 1) * 100 :
+                      undefined
+                  }
+                  yearChange={metrics.length > 12 ? 
+                    ((metrics[metrics.length - 1].activeCustomers / metrics[metrics.length - 13].activeCustomers) - 1) * 100 : 
+                    undefined}
+                  tooltip="Number of customers with active subscriptions"
+                />
+                <KPICard
+                  title="Average Contract Value"
+                  value={`$${metrics[metrics.length - 1].acv.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  monthChange={((metrics[metrics.length - 1].acv / metrics[metrics.length - 2].acv) - 1) * 100}
+                  quarterChange={
+                    metrics[metrics.length - 1]?.quarterlyAcv != null && 
+                    metrics[metrics.length - 4]?.quarterlyAcv != null && 
+                    metrics[metrics.length - 4] != null ?
+                      ((metrics[metrics.length - 1]?.quarterlyAcv ?? 0) / 
+                        (metrics[metrics.length - 4]?.quarterlyAcv ?? 1) - 1) * 100 :
+                      undefined
+                  }
+                  yearChange={metrics.length > 12 ? 
+                    ((metrics[metrics.length - 1].acv / metrics[metrics.length - 13].acv) - 1) * 100 : 
+                    undefined}
+                  tooltip="Average Contract Value - Total ARR divided by number of active customers"
+                />
+                <KPICard
+                  title="Annual Run Rate"
+                  value={`$${(metrics[metrics.length - 1].netNewRevenue * 4).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  monthChange={((metrics[metrics.length - 1].netNewRevenue / metrics[metrics.length - 2].netNewRevenue) - 1) * 100}
+                  quarterChange={
+                    metrics[metrics.length - 1]?.quarterlyNetNew != null && 
+                    metrics[metrics.length - 4]?.quarterlyNetNew != null && 
+                    metrics[metrics.length - 4] != null ?
+                      ((metrics[metrics.length - 1]?.quarterlyNetNew ?? 0) / 
+                        (metrics[metrics.length - 4]?.quarterlyNetNew ?? 1) - 1) * 100 :
+                      undefined
+                  }
+                  yearChange={metrics.length > 12 ? 
+                    ((metrics[metrics.length - 1].netNewRevenue / metrics[metrics.length - 13].netNewRevenue) - 1) * 100 : 
+                    undefined}
+                  tooltip="Annual Run Rate - Last quarter's net new revenue × 4 (annualized)"
+                />
+                <KPICard
+                  title="Net Revenue Retention"
+                  value={`${metrics[metrics.length - 1].nrr.toFixed(1)}%`}
+                  monthChange={metrics[metrics.length - 1].nrr}
+                  quarterChange={metrics[metrics.length - 1].quarterlyNrr}
+                  yearChange={metrics.length > 12 ? 
+                    (() => {
+                      const yearAgoCustomers = new Set(
+                        customerData
+                          .filter(customer => {
+                            const revenue = cleanCurrencyString(customer[metrics[metrics.length - 13].date]);
+                            return revenue > 0;
+                          })
+                          .map(customer => customer.Customer)
+                      );
 
-                {/* Secondary Metrics */}
-                <Box sx={{ display: 'grid', gap: 3 }}>
-                  <Tooltip title="Annual Run Rate - Last quarter's net new revenue × 4 (annualized)" arrow>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Annual Run Rate</Typography>
-                      <Typography variant="h4">
-                        ${(() => {
-                          const lastQuarterMetric = metrics.filter(m => m.formattedQuarter).slice(-1)[0];
-                          const annualRunRate = lastQuarterMetric?.netNewRevenue * 4 || 0;
-                          return annualRunRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        })()}
-                      </Typography>
-                    </Box>
-                  </Tooltip>
-                  <Tooltip title="New Revenue (Annual) - Sum of all positive MRR changes in the last 3 months" arrow>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">New Revenue (Annual)</Typography>
-                      <Typography variant="h4">
-                        ${(() => {
-                          const last3Months = metrics.slice(-3);
-                          const quarterlyNewRevenue = last3Months.reduce((sum, m) => sum + m.netNewRevenue, 0);
-                          return quarterlyNewRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        })()}
-                      </Typography>
-                    </Box>
-                  </Tooltip>
-                </Box>
-              </Box>
+                      const yearAgoRevenue = customerData
+                        .filter(customer => yearAgoCustomers.has(customer.Customer))
+                        .reduce((sum, customer) => {
+                          const revenue = cleanCurrencyString(customer[metrics[metrics.length - 13].date]);
+                          return sum + revenue;
+                        }, 0);
 
-              {/* Growth & Retention Metrics */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 }}>
-                <Tooltip title="Quarter-over-Quarter Growth Rate - (Current Quarter ARR - Previous Quarter ARR) / Previous Quarter ARR × 100" arrow>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Growth Rate (Q/Q)</Typography>
-                    <Typography variant="h5">
-                      {(() => {
-                        const lastQuarterMetric = metrics.filter(m => m.quarterlyGrowth !== undefined).slice(-1)[0];
-                        return lastQuarterMetric?.quarterlyGrowth?.toFixed(1) || '0.0';
-                      })()}%
-                    </Typography>
-                  </Box>
-                </Tooltip>
-                <Tooltip title="Monthly Net Revenue Retention - Revenue from existing customers this month / Revenue from same customers last month × 100" arrow>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Monthly NRR</Typography>
-                    <Typography variant="h5">
-                      {metrics[metrics.length - 1].nrr.toFixed(1)}%
-                    </Typography>
-                  </Box>
-                </Tooltip>
-                <Tooltip title="Quarterly Net Revenue Retention - Revenue from existing customers this quarter / Revenue from same customers last quarter × 100" arrow>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Quarterly NRR</Typography>
-                    <Typography variant="h5">
-                      {(() => {
-                        const lastQuarterMetric = metrics.filter(m => m.quarterlyNrr !== undefined).slice(-1)[0];
-                        const quarterlyNrr = lastQuarterMetric?.quarterlyNrr;
-                        return quarterlyNrr !== undefined ? quarterlyNrr.toFixed(1) : '0.0';
-                      })()}%
-                    </Typography>
-                  </Box>
-                </Tooltip>
-                <Tooltip title="Annual Net Revenue Retention - Revenue from existing customers this month / Revenue from same customers 12 months ago × 100" arrow>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Annual NRR</Typography>
-                    <Typography variant="h5">
-                      {(() => {
-                        const yearAgoIndex = metrics.length - 13;
-                        if (yearAgoIndex < 0) return '0.0';
-                        
-                        const yearAgoCustomers = new Set(
-                          customerData
-                            .filter((customer: CustomerData) => {
-                              const revenue = cleanCurrencyString(customer[metrics[yearAgoIndex].date]);
-                              return revenue > 0;
-                            })
-                            .map((customer: CustomerData) => customer.Customer)
-                        );
+                      const currentRevenueFromYearAgoCustomers = customerData
+                        .filter(customer => yearAgoCustomers.has(customer.Customer))
+                        .reduce((sum, customer) => {
+                          const revenue = cleanCurrencyString(customer[metrics[metrics.length - 1].date]);
+                          return sum + revenue;
+                        }, 0);
 
-                        const yearAgoRevenue = customerData
-                          .filter((customer: CustomerData) => yearAgoCustomers.has(customer.Customer))
-                          .reduce((sum: number, customer: CustomerData) => {
-                            const revenue = cleanCurrencyString(customer[metrics[yearAgoIndex].date]);
-                            return sum + revenue;
-                          }, 0);
-
-                        const currentRevenueFromYearAgoCustomers = customerData
-                          .filter((customer: CustomerData) => yearAgoCustomers.has(customer.Customer))
-                          .reduce((sum: number, customer: CustomerData) => {
-                            const revenue = cleanCurrencyString(customer[metrics[metrics.length - 1].date]);
-                            return sum + revenue;
-                          }, 0);
-
-                        return yearAgoRevenue 
-                          ? ((currentRevenueFromYearAgoCustomers / yearAgoRevenue) * 100).toFixed(1)
-                          : '0.0';
-                      })()}%
-                    </Typography>
-                  </Box>
-                </Tooltip>
+                      return yearAgoRevenue ? (currentRevenueFromYearAgoCustomers / yearAgoRevenue) * 100 : 100;
+                    })() : 
+                    undefined}
+                  tooltip="Net Revenue Retention - Revenue from existing customers compared to their revenue in previous periods"
+                />
               </Box>
             </Paper>
 
