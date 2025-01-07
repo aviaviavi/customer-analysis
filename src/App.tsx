@@ -3,7 +3,7 @@ import { Box, Container, Paper, Typography, Button, TextField, Tooltip, Modal, I
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Papa, { ParseResult } from 'papaparse';
 import * as XLSX from 'xlsx';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import './App.css';
 import CloseIcon from '@mui/icons-material/Close';
@@ -782,40 +782,40 @@ function App() {
   const customerColumns: GridColDef[] = [
     { field: 'customer', headerName: 'Customer', width: 200 },
     { 
-      field: 'startDate', 
+      field: 'inferredStartDate', 
       headerName: 'Start Date', 
       width: 120,
+      valueFormatter: (value: any) => {
+        if (!value) return '-';
+        const [year, month] = value.split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1))
+          .toLocaleDateString('en-US', { 
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'UTC'
+          });
+      },
       sortComparator: (v1, v2) => {
-        // Handle null/undefined values
         if (!v1) return -1;
         if (!v2) return 1;
-
-        // If we already have Date objects
-        if (v1 instanceof Date && v2 instanceof Date) {
-          return v1.getTime() - v2.getTime();
-        }
-
-        try {
-          // Try parsing as M/D/YY format first
-          const parseDate = (val: any) => {
-            if (val instanceof Date) return val;
-            if (typeof val === 'string') {
-              // Handle M/D/YY format
-              if (val.includes('/')) {
-                const parts = val.split('/').map((n, i) => i === 2 ? '20' + n : n);
-                return new Date(parts.join('/'));
-              }
-              // Handle Excel date format (YYYY-MM-DD)
-              return new Date(val);
-            }
-            return new Date(0); // fallback for invalid dates
-          };
-
-          return parseDate(v1).getTime() - parseDate(v2).getTime();
-        } catch (e) {
-          // If parsing fails, fall back to string comparison
-          return String(v1).localeCompare(String(v2));
-        }
+        const [year1, month1] = v1.split('-').map(Number);
+        const [year2, month2] = v2.split('-').map(Number);
+        return Date.UTC(year1, month1 - 1) - Date.UTC(year2, month2 - 1);
+      }
+    },
+    { 
+      field: 'inferredEndDate', 
+      headerName: 'End Date', 
+      width: 120,
+      valueFormatter: (value: any) => {
+        if (!value) return '-';
+        const [year, month] = value.split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1))
+          .toLocaleDateString('en-US', { 
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'UTC'
+          });
       }
     },
     { 
@@ -869,7 +869,6 @@ function App() {
       sortable: false,
       renderCell: (params) => {
         const customerData = getCustomerRevenueData(params.row);
-        const maxRevenue = Math.max(...customerData.map(d => d.revenue));
         
         return (
           <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
@@ -945,12 +944,11 @@ function App() {
       if (!year || !month) return;
       
       const startDate = new Date(year, month - 1);
-      const endDate = new Date(year, month);
       
       const filteredSummaries = customerSummaries.filter(customer => {
         if (!customer.startDate) return false;
         const customerStartDate = new Date(customer.startDate);
-        return customerStartDate >= startDate && customerStartDate < endDate;
+        return customerStartDate == startDate;
       });
       
       setFilteredCustomers(filteredSummaries);
