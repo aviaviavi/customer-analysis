@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Container, Paper, Typography, Button, TextField, Tooltip, Modal, IconButton } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Papa, { ParseResult } from 'papaparse';
@@ -288,10 +288,22 @@ const CustomerModal = ({
 };
 
 function App() {
-  const [customerData, setCustomerData] = useState<CustomerData[]>([]);
-  const [metrics, setMetrics] = useState<MetricsData[]>([]);
-  const [customerSummaries, setCustomerSummaries] = useState<CustomerSummary[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<CustomerSummary[]>([]);
+  const [customerData, setCustomerData] = useState<CustomerData[]>(() => {
+    const savedData = localStorage.getItem('customerData');
+    return savedData ? JSON.parse(savedData) : [];
+  });
+  const [metrics, setMetrics] = useState<MetricsData[]>(() => {
+    const savedMetrics = localStorage.getItem('metrics');
+    return savedMetrics ? JSON.parse(savedMetrics) : [];
+  });
+  const [customerSummaries, setCustomerSummaries] = useState<CustomerSummary[]>(() => {
+    const savedSummaries = localStorage.getItem('customerSummaries');
+    return savedSummaries ? JSON.parse(savedSummaries) : [];
+  });
+  const [filteredCustomers, setFilteredCustomers] = useState<CustomerSummary[]>(() => {
+    const savedFiltered = localStorage.getItem('customerSummaries');
+    return savedFiltered ? JSON.parse(savedFiltered) : [];
+  });
   const [monthlyVisibleSeries, setMonthlyVisibleSeries] = useState({
     mrr: true,
     arr: true,
@@ -306,9 +318,50 @@ function App() {
     acv: true,
     customers: true
   });
-  const [cohortData, setCohortData] = useState<CohortData[]>([]);
+  const [cohortData, setCohortData] = useState<CohortData[]>(() => {
+    const savedCohorts = localStorage.getItem('cohortData');
+    return savedCohorts ? JSON.parse(savedCohorts) : [];
+  });
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null);
   const [customerRevenueData, setCustomerRevenueData] = useState<CustomerRevenueData[]>([]);
+
+  // Add useEffect hooks to save data when it changes
+  useEffect(() => {
+    if (customerData.length > 0) {
+      localStorage.setItem('customerData', JSON.stringify(customerData));
+    }
+  }, [customerData]);
+
+  useEffect(() => {
+    if (metrics.length > 0) {
+      localStorage.setItem('metrics', JSON.stringify(metrics));
+    }
+  }, [metrics]);
+
+  useEffect(() => {
+    if (customerSummaries.length > 0) {
+      localStorage.setItem('customerSummaries', JSON.stringify(customerSummaries));
+    }
+  }, [customerSummaries]);
+
+  useEffect(() => {
+    if (cohortData.length > 0) {
+      localStorage.setItem('cohortData', JSON.stringify(cohortData));
+    }
+  }, [cohortData]);
+
+  // Add a function to clear storage
+  const clearStoredData = () => {
+    localStorage.removeItem('customerData');
+    localStorage.removeItem('metrics');
+    localStorage.removeItem('customerSummaries');
+    localStorage.removeItem('cohortData');
+    setCustomerData([]);
+    setMetrics([]);
+    setCustomerSummaries([]);
+    setFilteredCustomers([]);
+    setCohortData([]);
+  };
 
   const cleanCurrencyString = (value: string | number): number => {
     // If it's already a number, return it
@@ -702,6 +755,9 @@ function App() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Clear existing data before loading new file
+    clearStoredData();
+
     const fileType = file.name.split('.').pop()?.toLowerCase();
     
     if (fileType === 'csv') {
@@ -844,14 +900,18 @@ function App() {
   ];
 
   const CohortGrid = ({ data }: { data: CohortData[] }) => {
-    const maxPeriods = Math.max(...data.map(cohort => cohort.periods.length));
+    const maxPeriods = Math.max(...data.map(cohort => cohort.periods?.length || 0));
     const periods = Array.from({ length: maxPeriods }, (_, i) => i);
 
     // Sort cohorts by date
     const sortedData = [...data].sort((a, b) => {
       // Parse YYYY-MM format strings
-      const [yearA, monthA] = a.cohort.split('-').map(Number);
-      const [yearB, monthB] = b.cohort.split('-').map(Number);
+      const [yearA, monthA] = (a.cohort || '').split('-').map(Number);
+      const [yearB, monthB] = (b.cohort || '').split('-').map(Number);
+      
+      // Handle invalid dates
+      if (!yearA || !monthA) return 1;
+      if (!yearB || !monthB) return -1;
       
       // Compare years first
       if (yearA !== yearB) {
@@ -863,8 +923,11 @@ function App() {
 
     // Format date to MMM YY
     const formatCohortDate = (dateStr: string) => {
+      if (!dateStr) return 'N/A';
+      
       // Parse YYYY-MM format directly
       const [year, month] = dateStr.split('-').map(Number);
+      if (!year || !month) return dateStr;
       
       // Create date in local timezone (month is 0-based)
       const date = new Date(year, month - 1);
@@ -876,11 +939,16 @@ function App() {
     };
 
     const handleCohortClick = (cohortDate: string) => {
+      if (!cohortDate) return;
+      
       const [year, month] = cohortDate.split('-').map(Number);
+      if (!year || !month) return;
+      
       const startDate = new Date(year, month - 1);
       const endDate = new Date(year, month);
       
       const filteredSummaries = customerSummaries.filter(customer => {
+        if (!customer.startDate) return false;
         const customerStartDate = new Date(customer.startDate);
         return customerStartDate >= startDate && customerStartDate < endDate;
       });
@@ -921,13 +989,14 @@ function App() {
                   {formatCohortDate(cohort.cohort)}
                 </Box>
                 <Box component="td" sx={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
-                  {cohort.initialCustomers}
+                  {cohort.initialCustomers || 0}
                 </Box>
                 <Box component="td" sx={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
-                  ${cohort.initialRevenue.toLocaleString()}
+                  ${(cohort.initialRevenue || 0).toLocaleString()}
                 </Box>
                 {periods.map(period => {
-                  const periodData = cohort.periods[period];
+                  const periodData = cohort.periods?.[period];
+                  const revenueRate = periodData?.revenueRate ?? 0;
                   return (
                     <Box 
                       component="td"
@@ -937,12 +1006,12 @@ function App() {
                         textAlign: 'right', 
                         borderBottom: '1px solid rgba(224, 224, 224, 1)',
                         backgroundColor: periodData 
-                          ? `rgba(25, 118, 210, ${periodData.revenueRate / 200})` 
+                          ? `rgba(25, 118, 210, ${revenueRate / 200})` 
                           : 'transparent'
                       }}
                     >
                       {periodData 
-                        ? `${periodData.revenueRate.toFixed(0)}%` 
+                        ? `${revenueRate.toFixed(0)}%` 
                         : '-'}
                     </Box>
                   );
@@ -969,28 +1038,44 @@ function App() {
           <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
             SaaS Revenue Analysis
           </Typography>
-          <Button
-            variant="contained"
-            component="label"
-            sx={{ 
-              mb: metrics.length ? 0 : 2,
-              px: 4,
-              py: 1,
-              borderRadius: 2,
-              backgroundColor: 'primary.main',
-              '&:hover': {
-                backgroundColor: 'primary.dark',
-              }
-            }}
-          >
-            Upload File
-            <input
-              type="file"
-              hidden
-              accept=".csv,.xls,.xlsx"
-              onChange={handleFileUpload}
-            />
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              component="label"
+              sx={{ 
+                mb: metrics.length ? 0 : 2,
+                px: 4,
+                py: 1,
+                borderRadius: 2,
+                backgroundColor: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'primary.dark',
+                }
+              }}
+            >
+              Upload File
+              <input
+                type="file"
+                hidden
+                accept=".csv,.xls,.xlsx"
+                onChange={handleFileUpload}
+              />
+            </Button>
+            {metrics.length > 0 && (
+              <Button
+                variant="outlined"
+                onClick={clearStoredData}
+                sx={{ 
+                  mb: metrics.length ? 0 : 2,
+                  px: 4,
+                  py: 1,
+                  borderRadius: 2,
+                }}
+              >
+                Clear Data
+              </Button>
+            )}
+          </Box>
           {!metrics.length && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle1" gutterBottom>
