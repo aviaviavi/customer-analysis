@@ -44,6 +44,7 @@ interface CustomerSummary {
   arr: number;
   quarterlyChange: number;
   status: string;
+  ltv: number;
 }
 
 interface CohortData {
@@ -238,6 +239,9 @@ const CustomerModal = ({
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Current MRR: ${customer?.currentMrr.toLocaleString()}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Lifetime Value: ${customer?.ltv.toLocaleString()}
           </Typography>
         </Box>
 
@@ -532,19 +536,23 @@ function App() {
       // Determine status
       const isActive = currentMrr > 0;
 
-      const summary = {
+      // Calculate LTV by summing all historical revenue
+      const ltv = dateColumns.reduce((sum, date) => {
+        return sum + cleanCurrencyString(customer[date] || '0');
+      }, 0);
+
+      return {
         id: customer.Customer,
         customer: customer.Customer,
         startDate: customer['Customer Start Date'],
-        endDate: customer['Customer End Date'],
+        endDate: customer['Customer End Date'] || 'Active',
         currentMrr,
         lastQuarterMrr,
         arr,
         quarterlyChange,
-        status: isActive ? 'Active' : 'Churned'
+        status: isActive ? 'Active' : 'Churned',
+        ltv
       };
-
-      return summary;
     });
 
     console.log('All summaries:', summaries); // Debug log
@@ -790,13 +798,12 @@ function App() {
       }
     },
     { 
-      field: 'quarterlyChange',
-      headerName: 'Q/Q Change',
+      field: 'ltv', 
+      headerName: 'Lifetime Value',
       width: 130,
-      type: 'number',
-      valueFormatter: ( value ) => {
-        if (value == null) return '0.0%';
-        return `${Number(value).toFixed(1)}%`;
+      valueFormatter: (value) => {
+        if (value == null) return '$0';
+        return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
     }
   ];
