@@ -840,39 +840,64 @@ function App() {
       });
     };
 
+    const handleCohortClick = (cohortDate: string) => {
+      const [year, month] = cohortDate.split('-').map(Number);
+      const startDate = new Date(year, month - 1);
+      const endDate = new Date(year, month);
+      
+      const filteredSummaries = customerSummaries.filter(customer => {
+        const customerStartDate = new Date(customer.startDate);
+        return customerStartDate >= startDate && customerStartDate < endDate;
+      });
+      
+      setFilteredCustomers(filteredSummaries);
+    };
+
     return (
       <Box sx={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid rgba(224, 224, 224, 1)', minWidth: '80px' }}>Cohort</th>
-              <th style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>Size</th>
-              <th style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>Initial MRR</th>
+              <Box component="th" sx={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid rgba(224, 224, 224, 1)', minWidth: '80px' }}>Cohort</Box>
+              <Box component="th" sx={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>Size</Box>
+              <Box component="th" sx={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>Initial MRR</Box>
               {periods.map(period => (
-                <th key={period} style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
+                <Box component="th" key={period} sx={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
                   M{period}
-                </th>
+                </Box>
               ))}
             </tr>
           </thead>
           <tbody>
             {sortedData.map(cohort => (
-              <tr key={cohort.cohort}>
-                <td style={{ padding: '8px', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
+              <Box
+                component="tr"
+                key={cohort.cohort} 
+                onClick={() => handleCohortClick(cohort.cohort)}
+                sx={{ 
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+              >
+                <Box component="td" sx={{ padding: '8px', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
                   {formatCohortDate(cohort.cohort)}
-                </td>
-                <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
+                </Box>
+                <Box component="td" sx={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
                   {cohort.initialCustomers}
-                </td>
-                <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
+                </Box>
+                <Box component="td" sx={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
                   ${cohort.initialRevenue.toLocaleString()}
-                </td>
+                </Box>
                 {periods.map(period => {
                   const periodData = cohort.periods[period];
                   return (
-                    <td 
+                    <Box 
+                      component="td"
                       key={period} 
-                      style={{ 
+                      sx={{ 
                         padding: '8px', 
                         textAlign: 'right', 
                         borderBottom: '1px solid rgba(224, 224, 224, 1)',
@@ -884,13 +909,13 @@ function App() {
                       {periodData 
                         ? `${periodData.revenueRate.toFixed(0)}%` 
                         : '-'}
-                    </td>
+                    </Box>
                   );
                 })}
-              </tr>
+              </Box>
             ))}
           </tbody>
-        </table>
+        </Box>
       </Box>
     );
   };
@@ -1369,7 +1394,7 @@ function App() {
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                 Customer Details
               </Typography>
-              <Box sx={{ mb: 2 }}>
+              <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
                 <TextField
                   fullWidth
                   variant="outlined"
@@ -1385,6 +1410,15 @@ function App() {
                     setFilteredCustomers(filteredSummaries);
                   }}
                 />
+                {filteredCustomers.length !== customerSummaries.length && (
+                  <Button
+                    variant="outlined"
+                    onClick={() => setFilteredCustomers(customerSummaries)}
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    Clear Filter
+                  </Button>
+                )}
               </Box>
               <Box sx={{ height: 800 }}>
                 <DataGrid
