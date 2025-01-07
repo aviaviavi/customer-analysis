@@ -3,7 +3,7 @@ import { Box, Container, Paper, Typography, Button, TextField, Tooltip, Modal, I
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Papa, { ParseResult } from 'papaparse';
 import * as XLSX from 'xlsx';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import './App.css';
 import CloseIcon from '@mui/icons-material/Close';
@@ -804,6 +804,41 @@ function App() {
       valueFormatter: (value) => {
         if (value == null) return '$0';
         return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+    },
+    {
+      field: 'revenue_trend',
+      headerName: 'Revenue Trend',
+      width: 200,
+      sortable: false,
+      renderCell: (params) => {
+        const customerData = getCustomerRevenueData(params.row);
+        const maxRevenue = Math.max(...customerData.map(d => d.revenue));
+        
+        return (
+          <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
+            <ResponsiveContainer width="100%" height={40}>
+              <LineChart data={customerData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#6366F1"
+                  dot={false}
+                  strokeWidth={1.5}
+                />
+                <RechartsTooltip
+                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'MRR']}
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: 4,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Box>
+        );
       }
     }
   ];
