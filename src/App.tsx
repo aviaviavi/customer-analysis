@@ -586,8 +586,13 @@ function App() {
       // Calculate quarterly change
       const quarterlyChange = lastQuarterMrr ? ((currentMrr - lastQuarterMrr) / lastQuarterMrr) * 100 : 0;
       
-      // Determine status
-      const isActive = currentMrr > 0;
+      // Find first month with revenue (start date)
+      const startDate = dateColumns.find(date => cleanCurrencyString(customer[date]) > 0) || 'N/A';
+      
+      // Find last month with revenue (end date)
+      // Reverse the array to search from the end
+      const endDate = currentMrr > 0 ? '--' : 
+        (dateColumns.slice().reverse().find(date => cleanCurrencyString(customer[date]) > 0) || 'N/A');
 
       // Calculate LTV by summing all historical revenue
       const ltv = dateColumns.reduce((sum, date) => {
@@ -597,13 +602,13 @@ function App() {
       return {
         id: customer.Customer,
         customer: customer.Customer,
-        startDate: customer['Customer Start Date'],
-        endDate: customer['Customer End Date'] || 'Active',
+        startDate,
+        endDate,
         currentMrr,
         lastQuarterMrr,
         arr,
         quarterlyChange,
-        status: isActive ? 'Active' : 'Churned',
+        status: currentMrr > 0 ? 'Active' : 'Churned',
         ltv
       };
     });
@@ -797,16 +802,6 @@ function App() {
       field: 'endDate', 
       headerName: 'End Date', 
       width: 120,
-      valueFormatter: (value: any) => {
-        if (!value || value === 'N/A') return '-';
-        const [year, month] = value.split('-').map(Number);
-        return new Date(Date.UTC(year, month - 1))
-          .toLocaleDateString('en-US', { 
-            month: '2-digit',
-            year: 'numeric',
-            timeZone: 'UTC'
-          });
-      }
     },
     { 
       field: 'status',
@@ -888,7 +883,17 @@ function App() {
     }
   ];
 
-  const CohortGrid = ({ data }: { data: CohortData[] }) => {
+  const CohortGrid = ({ 
+    data,
+    customerData,
+    customerSummaries,
+    setFilteredCustomers 
+  }: { 
+    data: CohortData[];
+    customerData: CustomerData[];
+    customerSummaries: CustomerSummary[];
+    setFilteredCustomers: (customers: CustomerSummary[]) => void;
+  }) => {
     const maxPeriods = Math.max(...data.map(cohort => cohort.periods?.length || 0));
     const periods = Array.from({ length: maxPeriods }, (_, i) => i);
 
@@ -933,12 +938,17 @@ function App() {
       const [year, month] = cohortDate.split('-').map(Number);
       if (!year || !month) return;
       
-      const startDate = new Date(year, month - 1);
+      // Create the cohort month string in YYYY-MM format for exact matching
+      const cohortMonth = `${year}-${String(month).padStart(2, '0')}`;
       
       const filteredSummaries = customerSummaries.filter(customer => {
-        if (!customer.startDate) return false;
-        const customerStartDate = new Date(customer.startDate);
-        return customerStartDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit' }) === startDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit' });
+        // Find first month with revenue for this customer
+        const firstRevenueMonth = Object.keys(customerData[0])
+          .filter(key => /^\d{4}-\d{2}$/.test(key))
+          .find(date => 
+            cleanCurrencyString(customerData.find(c => c.Customer === customer.customer)?.[date] || 0) > 0
+          );
+        return firstRevenueMonth === cohortMonth;
       });
       
       setFilteredCustomers(filteredSummaries);
@@ -1495,7 +1505,12 @@ function App() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Shows revenue retention by cohort. Each cell shows the percentage of initial MRR retained/expanded over time.
               </Typography>
-              <CohortGrid data={cohortData} />
+              <CohortGrid 
+                data={cohortData} 
+                customerData={customerData}
+                customerSummaries={customerSummaries}
+                setFilteredCustomers={setFilteredCustomers}
+              />
             </Paper>
 
             <Paper sx={{ p: 4 }}>
