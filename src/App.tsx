@@ -1546,7 +1546,7 @@ function App() {
                   columns={customerColumns}
                   initialState={{
                     pagination: {
-                      paginationModel: { pageSize: 25 }
+                      paginationModel: { pageSize: 100 }
                     },
                     sorting: {
                       sortModel: [{ field: 'startDate', sort: 'desc' }]
