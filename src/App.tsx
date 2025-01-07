@@ -782,7 +782,7 @@ function App() {
   const customerColumns: GridColDef[] = [
     { field: 'customer', headerName: 'Customer', width: 200 },
     { 
-      field: 'inferredStartDate', 
+      field: 'startDate', 
       headerName: 'Start Date', 
       width: 120,
       valueFormatter: (value: any) => {
@@ -804,11 +804,11 @@ function App() {
       }
     },
     { 
-      field: 'inferredEndDate', 
+      field: 'endDate', 
       headerName: 'End Date', 
       width: 120,
       valueFormatter: (value: any) => {
-        if (!value) return '-';
+        if (!value || value === 'N/A') return '-';
         const [year, month] = value.split('-').map(Number);
         return new Date(Date.UTC(year, month - 1))
           .toLocaleDateString('en-US', { 
@@ -948,7 +948,7 @@ function App() {
       const filteredSummaries = customerSummaries.filter(customer => {
         if (!customer.startDate) return false;
         const customerStartDate = new Date(customer.startDate);
-        return customerStartDate == startDate;
+        return customerStartDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit' }) === startDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit' });
       });
       
       setFilteredCustomers(filteredSummaries);
