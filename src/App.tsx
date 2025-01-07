@@ -618,12 +618,11 @@ function App() {
 
   const calculateCohortData = (data: CustomerData[], dateColumns: string[]): CohortData[] => {
     const cohortGroups = data.reduce((groups: { [key: string]: CustomerData[] }, customer) => {
-      const startDate = customer['Customer Start Date'];
-      if (!startDate || startDate === 'N/A') return groups;
+      // Find the first month with revenue
+      const firstRevenueDate = dateColumns.find(date => cleanCurrencyString(customer[date]) > 0);
+      if (!firstRevenueDate) return groups;
       
-      const cohortDate = new Date(startDate);
-      const month = cohortDate.getMonth() + 1;
-      const year = cohortDate.getFullYear();
+      const [year, month] = firstRevenueDate.split('-').map(Number);
       const cohort = `${year}-${String(month).padStart(2, '0')}`;
       
       if (!groups[cohort]) {
@@ -649,23 +648,13 @@ function App() {
         };
       }
 
-      // Calculate initial revenue by looking at the first 3 months of data for each customer
+      // Calculate initial revenue using the cohort month's revenue
       const initialRevenue = customers.reduce((sum, customer) => {
-        // Get the first 3 months of revenue
-        const firstThreeMonths = Array.from({ length: 3 }, (_, i) => {
-          const date = new Date(cohortYear, cohortMonth - 1 + i);
-          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        });
-
-        // Get the maximum revenue from the first 3 months
-        const maxRevenue = Math.max(
-          ...firstThreeMonths.map(date => cleanCurrencyString(customer[date] || 0))
-        );
-
-        return sum + maxRevenue;
+        const revenue = cleanCurrencyString(customer[cohort]);
+        return sum + revenue;
       }, 0);
 
-      // Calculate periods as before
+      // Calculate periods
       const monthsDiff = (latestYear - cohortYear) * 12 + (latestMonth - cohortMonth);
       const periods = Array.from({ length: monthsDiff + 1 }, (_, index) => {
         const periodDate = new Date(cohortYear, cohortMonth - 1 + index);
@@ -682,7 +671,8 @@ function App() {
           retained: activeCustomers,
           revenue: periodRevenue,
           retentionRate: (activeCustomers / customers.length) * 100,
-          revenueRate: periodRevenue / initialRevenue * 100
+          // For month 0, always set to 100%. For other months, calculate relative to initial revenue
+          revenueRate: index === 0 ? 100 : (initialRevenue > 0 ? (periodRevenue / initialRevenue) * 100 : 0)
         };
       });
 
