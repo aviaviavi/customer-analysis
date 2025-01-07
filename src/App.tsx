@@ -839,6 +839,41 @@ function App() {
       }
     },
     { 
+      field: 'quarterlyChange',
+      headerName: 'Q/Q Growth',
+      width: 130,
+      type: 'number',
+      valueFormatter: (params: { value: number | null }) => {
+        if (params.value == null) return '--';
+        return `${params.value >= 0 ? '+' : ''}${params.value.toFixed(1)}%`;
+      },
+      renderCell: (params) => {
+        const value = params.value as number;
+        let color = '#6B7280'; // Default gray for no change
+        let intensity = Math.min(Math.abs(value) / 100, 1); // Scale intensity based on magnitude, cap at 100%
+        
+        if (value > 0) {
+          // Green with varying intensity
+          color = `rgba(34, 197, 94, ${0.3 + (intensity * 0.7)})`;
+        } else if (value < 0) {
+          // Red with varying intensity
+          color = `rgba(239, 68, 68, ${0.3 + (intensity * 0.7)})`;
+        }
+        
+        return (
+          <Box sx={{ 
+            color,
+            width: '100%',
+            textAlign: 'right',
+            pr: 2,
+            fontWeight: Math.abs(value) > 20 ? 600 : 400 // Bold if change is significant
+          }}>
+            {value == null ? '--' : `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`}
+          </Box>
+        );
+      }
+    },
+    { 
       field: 'arr',
       headerName: 'ARR',
       width: 130,
