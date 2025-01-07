@@ -324,6 +324,16 @@ function App() {
   });
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null);
   const [customerRevenueData, setCustomerRevenueData] = useState<CustomerRevenueData[]>([]);
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState<{ [key: string]: boolean }>(() => {
+    const savedVisibility = localStorage.getItem('columnVisibility');
+    return savedVisibility ? JSON.parse(savedVisibility) : { endDate: false };
+  });
+
+  useEffect(() => {
+    if (Object.keys(columnVisibilityModel).length > 0) {
+      localStorage.setItem('columnVisibility', JSON.stringify(columnVisibilityModel));
+    }
+  }, [columnVisibilityModel]);
 
   // Add useEffect hooks to save data when it changes
   useEffect(() => {
@@ -1555,6 +1565,8 @@ function App() {
                       sortModel: [{ field: 'startDate', sort: 'desc' }]
                     }
                   }}
+                  columnVisibilityModel={columnVisibilityModel}
+                  onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
                   pageSizeOptions={[5]}
                   disableRowSelectionOnClick
                   onRowClick={(params) => {
