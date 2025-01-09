@@ -1246,8 +1246,24 @@ function App() {
                         (metrics[metrics.length - 4]?.quarterlyNetNew ?? 1) - 1) * 100 :
                       undefined
                   }
-                  yearChange={metrics.length > 12 ? 
-                    ((metrics[metrics.length - 1].netNewRevenue / metrics[metrics.length - 13].netNewRevenue) - 1) * 100 : 
+                  yearChange={metrics.length > 14 ? 
+                    (() => {
+                      // Calculate 3-month average for current period
+                      const currentAvg = (
+                        metrics[metrics.length - 1].netNewRevenue +
+                        metrics[metrics.length - 2].netNewRevenue +
+                        metrics[metrics.length - 3].netNewRevenue
+                      ) / 3;
+                      
+                      // Calculate 3-month average for year-ago period
+                      const yearAgoAvg = (
+                        metrics[metrics.length - 13].netNewRevenue +
+                        metrics[metrics.length - 14].netNewRevenue +
+                        metrics[metrics.length - 15].netNewRevenue
+                      ) / 3;
+                      
+                      return yearAgoAvg > 0 ? ((currentAvg / yearAgoAvg) - 1) * 100 : 0;
+                    })() : 
                     undefined}
                   tooltip="Annual Run Rate - Last quarter's net new revenue × 4 (annualized)"
                 />
