@@ -31,6 +31,7 @@ interface MetricsData {
   quarterlyNetNew?: number;
   quarterlyAcv?: number;
   quarterlyActiveCustomers?: number;
+  quarterlyNewArr?: number;
   formattedQuarter?: string;
 }
 
@@ -316,7 +317,8 @@ function App() {
     arr: true,
     nrr: true,
     acv: true,
-    customers: true
+    customers: true,
+    newArr: true
   });
   const [cohortData, setCohortData] = useState<CohortData[]>(() => {
     const savedCohorts = localStorage.getItem('cohortData');
@@ -513,6 +515,33 @@ function App() {
         const previousQuarterMetric = metricsData.find(m => m.date === previousQuarterDate);
         const previousQuarterlyMrr = previousQuarterMetric?.mrr || 0;
 
+        // Calculate quarter start date
+        const quarterStartMonth = month - 2;
+        const quarterStartYear = quarterStartMonth < 1 ? year - 1 : year;
+        const adjustedStartMonth = quarterStartMonth < 1 ? quarterStartMonth + 12 : quarterStartMonth;
+
+        // Calculate new ARR booked this quarter by looking at each month in the quarter
+        let quarterlyNewArr = 0;
+        const monthsInQuarter = [
+          `${quarterStartYear}-${String(adjustedStartMonth).padStart(2, '0')}`,
+          `${quarterStartYear}-${String(adjustedStartMonth + 1).padStart(2, '0')}`,
+          metric.date
+        ];
+
+        customerData.forEach(customer => {
+          let previousMrr = cleanCurrencyString(customer[previousQuarterDate]);
+          
+          // Look at each month in the quarter
+          monthsInQuarter.forEach(monthDate => {
+            const currentMrr = cleanCurrencyString(customer[monthDate]);
+            const mrrChange = currentMrr - previousMrr;
+            if (mrrChange > 0) {
+              quarterlyNewArr += mrrChange * 12; // Annualize the positive change
+            }
+            previousMrr = currentMrr; // Update for next month's comparison
+          });
+        });
+
         // Calculate quarterly metrics
         const quarterlyGrowth = previousQuarterlyMrr 
           ? ((quarterlyMrr - previousQuarterlyMrr) / previousQuarterlyMrr) * 100
@@ -572,6 +601,7 @@ function App() {
         metric.quarterlyNrr = quarterlyNrr;
         metric.quarterlyNetNew = quarterlyNetNew;
         metric.quarterlyAcv = quarterlyAcv;
+        metric.quarterlyNewArr = quarterlyNewArr;
         metric.formattedQuarter = `Q${quarter} '${String(year).slice(2)}`;
         metric.quarterlyActiveCustomers = quarterlyActiveCustomers;
       }
@@ -1458,6 +1488,15 @@ function App() {
                     />
                     <label htmlFor="quarterly-customers">Customers</label>
                   </Box>
+                  <Box>
+                    <input
+                      type="checkbox"
+                      id="quarterly-new-arr"
+                      checked={quarterlyVisibleSeries.newArr}
+                      onChange={(e) => setQuarterlyVisibleSeries(prev => ({ ...prev, newArr: e.target.checked }))}
+                    />
+                    <label htmlFor="quarterly-new-arr">New ARR</label>
+                  </Box>
                 </Box>
               </Box>
               <Box sx={{ height: 400, ml: 2 }}>
@@ -1483,7 +1522,7 @@ function App() {
                     />
                     <RechartsTooltip 
                       formatter={(value: number, name: string) => {
-                        if (name === 'Quarterly MRR' || name === 'Quarterly ARR' || name === 'Quarterly ACV') {
+                        if (name === 'Quarterly MRR' || name === 'Quarterly ARR' || name === 'Quarterly ACV' || name === 'New ARR') {
                           return [`$${value.toLocaleString()}`, name];
                         }
                         if (name === 'Active Customers') {
@@ -1536,6 +1575,15 @@ function App() {
                         dataKey="quarterlyActiveCustomers" 
                         name="Active Customers" 
                         stroke="#e91e63" 
+                      />
+                    )}
+                    {quarterlyVisibleSeries.newArr && (
+                      <Line 
+                        yAxisId="left" 
+                        type="monotone" 
+                        dataKey="quarterlyNewArr" 
+                        name="New ARR" 
+                        stroke="#9333ea" 
                       />
                     )}
                   </LineChart>
