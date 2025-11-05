@@ -337,6 +337,26 @@ function App() {
     }
   }, [columnVisibilityModel]);
 
+  // Helper to find the latest and previous quarter-end indices in metrics
+  const getLatestQuarterIndices = (list: MetricsData[]) => {
+    // Find last index that has quarterly metrics populated (i.e., quarter end)
+    const latestIdx = [...list]
+      .map((m, i) => ({ m, i }))
+      .reverse()
+      .find(({ m }) => m.quarterlyGrowth != null || m.quarterlyMrr != null || m.formattedQuarter != null)?.i ?? -1;
+
+    // Find the previous quarter-end index before the latest
+    const prevIdx = latestIdx > 0
+      ? [...list]
+          .slice(0, latestIdx)
+          .map((m, i) => ({ m, i }))
+          .reverse()
+          .find(({ m }) => m.quarterlyGrowth != null || m.quarterlyMrr != null || m.formattedQuarter != null)?.i ?? -1
+      : -1;
+
+    return { latestIdx, prevIdx };
+  };
+
   // Add useEffect hooks to save data when it changes
   useEffect(() => {
     if (customerData.length > 0) {
@@ -349,6 +369,9 @@ function App() {
       localStorage.setItem('metrics', JSON.stringify(metrics));
     }
   }, [metrics]);
+
+  // Indices of the most recent quarter-end metrics for KPI Q/Q calculations
+  const { latestIdx: latestQuarterIdx, prevIdx: prevQuarterIdx } = getLatestQuarterIndices(metrics);
 
   useEffect(() => {
     if (customerSummaries.length > 0) {
@@ -1188,7 +1211,9 @@ function App() {
                   title="Monthly Recurring Revenue"
                   value={`$${metrics[metrics.length - 1].mrr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   monthChange={((metrics[metrics.length - 1].mrr / metrics[metrics.length - 2].mrr) - 1) * 100}
-                  quarterChange={metrics[metrics.length - 1].quarterlyGrowth}
+                  quarterChange={
+                    latestQuarterIdx >= 0 ? metrics[latestQuarterIdx].quarterlyGrowth : undefined
+                  }
                   yearChange={metrics.length > 12 ? ((metrics[metrics.length - 1].mrr / metrics[metrics.length - 13].mrr) - 1) * 100 : undefined}
                   tooltip="Monthly Recurring Revenue - Sum of all active customer subscriptions"
                 />
@@ -1196,7 +1221,9 @@ function App() {
                   title="Annual Recurring Revenue"
                   value={`$${metrics[metrics.length - 1].arr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   monthChange={((metrics[metrics.length - 1].arr / metrics[metrics.length - 2].arr) - 1) * 100}
-                  quarterChange={metrics[metrics.length - 1].quarterlyGrowth}
+                  quarterChange={
+                    latestQuarterIdx >= 0 ? metrics[latestQuarterIdx].quarterlyGrowth : undefined
+                  }
                   yearChange={metrics.length > 12 ? ((metrics[metrics.length - 1].arr / metrics[metrics.length - 13].arr) - 1) * 100 : undefined}
                   tooltip="Annual Recurring Revenue - Current MRR × 12"
                 />
@@ -1205,12 +1232,10 @@ function App() {
                   value={metrics[metrics.length - 1].activeCustomers.toLocaleString()}
                   monthChange={((metrics[metrics.length - 1].activeCustomers / metrics[metrics.length - 2].activeCustomers) - 1) * 100}
                   quarterChange={
-                    metrics[metrics.length - 1]?.quarterlyActiveCustomers != null && 
-                    metrics[metrics.length - 4]?.quarterlyActiveCustomers != null && 
-                    metrics[metrics.length - 4] != null ?
-                      ((metrics[metrics.length - 1]?.quarterlyActiveCustomers ?? 0) / 
-                        (metrics[metrics.length - 4]?.quarterlyActiveCustomers ?? 1) - 1) * 100 :
-                      undefined
+                    latestQuarterIdx >= 0 && prevQuarterIdx >= 0
+                      ? (((metrics[latestQuarterIdx].quarterlyActiveCustomers ?? 0) /
+                          ((metrics[prevQuarterIdx].quarterlyActiveCustomers ?? 0) || 1)) - 1) * 100
+                      : undefined
                   }
                   yearChange={metrics.length > 12 ? 
                     ((metrics[metrics.length - 1].activeCustomers / metrics[metrics.length - 13].activeCustomers) - 1) * 100 : 
@@ -1222,12 +1247,10 @@ function App() {
                   value={`$${metrics[metrics.length - 1].acv.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   monthChange={((metrics[metrics.length - 1].acv / metrics[metrics.length - 2].acv) - 1) * 100}
                   quarterChange={
-                    metrics[metrics.length - 1]?.quarterlyAcv != null && 
-                    metrics[metrics.length - 4]?.quarterlyAcv != null && 
-                    metrics[metrics.length - 4] != null ?
-                      ((metrics[metrics.length - 1]?.quarterlyAcv ?? 0) / 
-                        (metrics[metrics.length - 4]?.quarterlyAcv ?? 1) - 1) * 100 :
-                      undefined
+                    latestQuarterIdx >= 0 && prevQuarterIdx >= 0
+                      ? (((metrics[latestQuarterIdx].quarterlyAcv ?? 0) /
+                          ((metrics[prevQuarterIdx].quarterlyAcv ?? 0) || 1)) - 1) * 100
+                      : undefined
                   }
                   yearChange={metrics.length > 12 ? 
                     ((metrics[metrics.length - 1].acv / metrics[metrics.length - 13].acv) - 1) * 100 : 
@@ -1239,12 +1262,10 @@ function App() {
                   value={`$${(metrics[metrics.length - 1].netNewRevenue * 4).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   monthChange={((metrics[metrics.length - 1].netNewRevenue / metrics[metrics.length - 2].netNewRevenue) - 1) * 100}
                   quarterChange={
-                    metrics[metrics.length - 1]?.quarterlyNetNew != null && 
-                    metrics[metrics.length - 4]?.quarterlyNetNew != null && 
-                    metrics[metrics.length - 4] != null ?
-                      ((metrics[metrics.length - 1]?.quarterlyNetNew ?? 0) / 
-                        (metrics[metrics.length - 4]?.quarterlyNetNew ?? 1) - 1) * 100 :
-                      undefined
+                    latestQuarterIdx >= 0 && prevQuarterIdx >= 0
+                      ? (((metrics[latestQuarterIdx].quarterlyNetNew ?? 0) /
+                          ((metrics[prevQuarterIdx].quarterlyNetNew ?? 0) || 1)) - 1) * 100
+                      : undefined
                   }
                   yearChange={metrics.length > 14 ? 
                     (() => {
@@ -1271,7 +1292,9 @@ function App() {
                   title="Net Revenue Retention"
                   value={`${metrics[metrics.length - 1].nrr.toFixed(1)}%`}
                   monthChange={metrics[metrics.length - 1].nrr}
-                  quarterChange={metrics[metrics.length - 1].quarterlyNrr}
+                  quarterChange={
+                    latestQuarterIdx >= 0 ? metrics[latestQuarterIdx].quarterlyNrr : undefined
+                  }
                   yearChange={metrics.length > 12 ? 
                     (() => {
                       const yearAgoCustomers = new Set(
