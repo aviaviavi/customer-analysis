@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, Container, Paper, Typography, Button, TextField, Tooltip, Modal, IconButton } from '@mui/material';
+import { Box, Container, Paper, Typography, Button, TextField, Tooltip, Modal, IconButton, Alert } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Papa, { ParseResult } from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -378,6 +378,103 @@ function App() {
       localStorage.setItem('customerSummaries', JSON.stringify(customerSummaries));
     }
   }, [customerSummaries]);
+
+  // Stripe import modal state
+  const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  // Leave empty to use same-origin (dev proxy or deployed backend)
+  const [serverUrl, setServerUrl] = useState<string>(() => localStorage.getItem('serverUrl') || '');
+  const [stripeKeyInput, setStripeKeyInput] = useState<string>('');
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
+  const [healthChecking, setHealthChecking] = useState(false);
+  const [healthMessage, setHealthMessage] = useState<string | null>(null);
+  const [healthOk, setHealthOk] = useState<boolean | null>(null);
+
+  const importFromStripe = async () => {
+    try {
+      setStripeLoading(true);
+      setStripeError(null);
+      localStorage.setItem('serverUrl', serverUrl);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
+      const base = serverUrl.trim() ? serverUrl.replace(/\/$/, '') : '';
+      const finalUrl = `${base}/api/stripe/export`;
+      const resp = await fetch(finalUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(stripeKeyInput ? { Authorization: `Bearer ${stripeKeyInput}` } : {}),
+        },
+        body: JSON.stringify({}),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!resp.ok) {
+        const text = await resp.text();
+        let payload: any = undefined;
+        try { payload = JSON.parse(text); } catch {}
+        const baseMsg = payload?.error || payload?.message || text || `Request failed (${resp.status})`;
+        const extra = payload?.details ? ` — ${payload.details}` : '';
+        const timeoutHint = resp.status === 504
+          ? ' The server timed out contacting Stripe. Try narrowing data (set STRIPE_STATUS=active, STRIPE_MAX_PAGES lower) or increase STRIPE_REQUEST_TIMEOUT_MS.'
+          : '';
+        throw new Error(`${baseMsg}${extra}${timeoutHint}`);
+      }
+      const data = await resp.json() as CustomerData[];
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error('No data returned from Stripe (no subscriptions found)');
+      }
+      // Do not persist the key; clear it on success
+      setStripeKeyInput('');
+      clearStoredData();
+      setCustomerData(data);
+      calculateMetrics(data);
+      setStripeModalOpen(false);
+    } catch (e: any) {
+      let msg = (e?.name === 'AbortError')
+        ? 'Request timed out. Ensure the backend is running and reachable.'
+        : (e?.message || 'Unknown error');
+      const isNetwork = e?.name === 'TypeError' || /Failed to fetch/i.test(e?.message || '');
+      if (isNetwork) {
+        const httpsToHttp = (typeof window !== 'undefined' && window.location?.protocol === 'https:' && serverUrl && /^http:/.test(serverUrl));
+        const base = serverUrl.trim() ? serverUrl.replace(/\/$/, '') : '';
+        msg = `Cannot reach backend at ${base || '(same-origin)'}/api/stripe/export. ` +
+          `Check that the server is running (cd server && npm start). In dev, leaving Backend URL blank uses Vite proxy at /api → http://localhost:8787. ` +
+          `If specifying a full URL, ensure it is correct and not blocked by mixed content${httpsToHttp ? ' (HTTPS page calling HTTP backend)' : ''}.`;
+      }
+      console.error('Stripe import error:', e);
+      setStripeError(`Stripe import error: ${msg}`);
+    } finally {
+      setStripeLoading(false);
+    }
+  };
+
+  const testBackendConnection = async () => {
+    try {
+      setHealthChecking(true);
+      setHealthMessage(null);
+      setHealthOk(null);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      const base = serverUrl.trim() ? serverUrl.replace(/\/$/, '') : '';
+      const resp = await fetch(`${base}/health`, { signal: controller.signal, headers: { 'Accept': 'application/json' } });
+      clearTimeout(timeout);
+      if (!resp.ok) {
+        setHealthOk(false);
+        setHealthMessage(`Health check failed with status ${resp.status}`);
+        return;
+      }
+      const json = await resp.json().catch(() => ({}));
+      setHealthOk(true);
+      setHealthMessage(`Backend reachable. Status: ${json?.status || 'ok'}`);
+    } catch (e: any) {
+      const isTimeout = e?.name === 'AbortError';
+      setHealthOk(false);
+      setHealthMessage(isTimeout ? 'Health check timed out.' : (e?.message || 'Network error'));
+    } finally {
+      setHealthChecking(false);
+    }
+  };
 
   useEffect(() => {
     if (cohortData.length > 0) {
@@ -1157,6 +1254,18 @@ function App() {
                 onChange={handleFileUpload}
               />
             </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setStripeModalOpen(true)}
+              sx={{
+                mb: metrics.length ? 0 : 2,
+                px: 4,
+                py: 1,
+                borderRadius: 2,
+              }}
+            >
+              Import from Stripe
+            </Button>
             {metrics.length > 0 && (
               <Button
                 variant="outlined"
@@ -1187,7 +1296,7 @@ function App() {
                 <Typography variant="body2" color="text.secondary">• Monthly revenue columns (YYYY-MM format)</Typography>
               </Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                💡 Stripe's MRR report is already in the correct format - just export and upload!
+                💡 Prefer dynamic import? Click "Import from Stripe" and the app will fetch subscriptions securely via a local backend.
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: 'italic' }}>
                 🔒 Your data is processed locally and never leaves your machine
@@ -1710,6 +1819,75 @@ function App() {
             />
           </>
         )}
+
+        {/* Stripe Import Modal */}
+        <Modal open={stripeModalOpen} onClose={() => setStripeModalOpen(false)}>
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 520,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 24,
+            p: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}>
+            <Typography variant="h6">Import from Stripe</Typography>
+            <Typography variant="body2" color="text.secondary">
+              The secret key is never stored; it is sent only to your local backend to fetch data. For production, set STRIPE_SECRET_KEY on the server and leave this blank.
+            </Typography>
+            <TextField
+              label="Backend URL"
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder="(leave blank to use dev proxy)"
+              fullWidth
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button variant="outlined" size="small" onClick={testBackendConnection} disabled={healthChecking}>
+                {healthChecking ? 'Testing…' : 'Test Connection'}
+              </Button>
+              {healthOk === true && (
+                <Alert severity="success" sx={{ flex: 1, py: 0 }}>
+                  {healthMessage}
+                </Alert>
+              )}
+              {healthOk === false && (
+                <Alert severity="error" sx={{ flex: 1, py: 0 }}>
+                  {healthMessage}
+                </Alert>
+              )}
+            </Box>
+            {serverUrl && typeof window !== 'undefined' && window.location?.protocol === 'https:' && /^http:/.test(serverUrl) && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(serverUrl) && (
+              <Alert severity="warning">
+                Frontend is served over HTTPS but backend URL is HTTP. Browsers block mixed content. Use an HTTPS backend or localhost.
+              </Alert>
+            )}
+            <TextField
+              label="Stripe Secret Key (optional for local dev)"
+              value={stripeKeyInput}
+              onChange={(e) => setStripeKeyInput(e.target.value)}
+              placeholder="sk_live_... or sk_test_..."
+              fullWidth
+              type="password"
+            />
+            {stripeError && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                {stripeError}
+              </Alert>
+            )}
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 1 }}>
+              <Button onClick={() => setStripeModalOpen(false)} disabled={stripeLoading}>Cancel</Button>
+              <Button variant="contained" onClick={importFromStripe} disabled={stripeLoading}>
+                {stripeLoading ? 'Importing…' : 'Import'}
+              </Button>
+            </Box>
+          </Box>
+        </Modal>
       </Container>
     </ThemeProvider>
   );
