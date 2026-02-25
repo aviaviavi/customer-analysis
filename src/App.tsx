@@ -3,7 +3,7 @@ import { Box, Container, Paper, Typography, Button, TextField, Tooltip, Modal, I
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Papa, { ParseResult } from 'papaparse';
 import * as XLSX from 'xlsx';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import './App.css';
 import CloseIcon from '@mui/icons-material/Close';
@@ -1419,6 +1419,15 @@ function App() {
                       fontSize={12}
                       tickLine={false}
                     />
+                    {monthlyVisibleSeries.nrr && (
+                      <ReferenceLine
+                        yAxisId="right"
+                        y={100}
+                        stroke="#f59e0b"
+                        strokeDasharray="4 4"
+                        label={{ value: '100%', position: 'right', fill: '#6B7280', fontSize: 12 }}
+                      />
+                    )}
                     <RechartsTooltip 
                       formatter={(value: number, name: string) => {
                         if (name === 'MRR' || name === 'ARR' || name === 'ACV') {
@@ -1559,6 +1568,15 @@ function App() {
                       label={{ value: 'NRR (%)', angle: 90, position: 'insideRight', offset: -35 }}
                       width={80}
                     />
+                    {quarterlyVisibleSeries.nrr && (
+                      <ReferenceLine
+                        yAxisId="right"
+                        y={100}
+                        stroke="#f59e0b"
+                        strokeDasharray="4 4"
+                        label={{ value: '100%', position: 'right', fill: '#6B7280', fontSize: 12 }}
+                      />
+                    )}
                     <RechartsTooltip 
                       formatter={(value: number, name: string) => {
                         if (name === 'Quarterly MRR' || name === 'Quarterly ARR' || name === 'Quarterly ACV' || name === 'New ARR') {
