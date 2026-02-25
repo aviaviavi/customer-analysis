@@ -1423,9 +1423,8 @@ function App() {
                       <ReferenceLine
                         yAxisId="right"
                         y={100}
-                        stroke="#f59e0b"
+                        stroke="#9CA3AF"
                         strokeDasharray="4 4"
-                        label={{ value: '100%', position: 'right', fill: '#6B7280', fontSize: 12 }}
                       />
                     )}
                     <RechartsTooltip 
@@ -1572,9 +1571,8 @@ function App() {
                       <ReferenceLine
                         yAxisId="right"
                         y={100}
-                        stroke="#f59e0b"
+                        stroke="#9CA3AF"
                         strokeDasharray="4 4"
-                        label={{ value: '100%', position: 'right', fill: '#6B7280', fontSize: 12 }}
                       />
                     )}
                     <RechartsTooltip 
